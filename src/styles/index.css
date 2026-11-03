@@ -1114,6 +1114,9 @@ main {
   border-radius: 6px;
   color: rgb(245, 68, 68);
   place-items: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 .room-card-icon {
   width: 34px;

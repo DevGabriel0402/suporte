@@ -2643,3 +2643,12 @@ button.stat-card:hover {
 .pwa-install-help svg{opacity:.6}
 .pwa-install-help:hover,.pwa-install-help:focus-visible{background:#eaf1ff}
 .pwa-install-help:hover svg,.pwa-install-help:focus-visible svg{opacity:1}
+.delete-dialog{width:min(460px,calc(100% - 32px));max-height:calc(100dvh - 32px);padding:24px;border:1px solid #e2e8f0;border-radius:16px;color:#17243b;box-shadow:0 20px 60px #101d3540}
+.delete-dialog::backdrop{background:#101d3590}
+.delete-dialog h2,.delete-dialog p{margin:0}
+.delete-dialog p{line-height:1.5;overflow-wrap:anywhere}
+.delete-icon{display:grid;place-items:center;width:42px;height:42px;border-radius:10px;background:#feeaea;color:#a32020}
+.delete-actions{display:flex;justify-content:flex-end;gap:8px}
+.delete-actions .btn{min-height:44px}
+.btn-danger{background:#b42323;color:#fff}
+.btn-danger:disabled{opacity:.45;cursor:default}

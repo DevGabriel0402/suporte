@@ -1,3 +1,4 @@
+import DeleteConfirmation from './DeleteConfirmation';
 import { useEffect, useState } from "react";
 import { whatsappNumber } from "../utils/whatsapp";
 
@@ -18,6 +19,7 @@ export function useSupportContact(client, enabled = true) {
 export default function SupportContact({ client }) {
   const contact = useSupportContact(client);
   const [status, setStatus] = useState(null);
+  const [confirmRemoval, setConfirmRemoval] = useState(false);
   const [saving, setSaving] = useState(false);
 
   async function save(event) {
@@ -31,6 +33,14 @@ export default function SupportContact({ client }) {
       });
       return;
     }
+    if (!whatsapp && contact) {
+      setConfirmRemoval(true);
+      return;
+    }
+    await saveContact(whatsapp);
+  }
+
+  async function saveContact(whatsapp) {
     setSaving(true);
     setStatus(null);
     try {
@@ -78,7 +88,8 @@ export default function SupportContact({ client }) {
           </div>
         </form>
       )}
-      {status && <p role={status.error ? "alert" : "status"}>{status.text}</p>}
+      {confirmRemoval && <DeleteConfirmation target="o contato de suporte publicado" onClose={() => setConfirmRemoval(false)} onDelete={() => saveContact("")} />}
+    {status && <p role={status.error ? "alert" : "status"}>{status.text}</p>}
     </section>
   );
 }

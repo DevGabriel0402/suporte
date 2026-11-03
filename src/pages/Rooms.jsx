@@ -1,3 +1,4 @@
+import DeleteConfirmation from '../components/DeleteConfirmation';
 import Loading from '../components/Loading';
 import { useState } from "react";
 import { DoorOpen, Plus, Trash2, ClipboardList, ArrowRight } from "lucide-react";
@@ -9,6 +10,7 @@ export default function Rooms() {
     [name, setName] = useState(""),
     [importing, setImporting] = useState(false),
     nav = useNavigate();
+  const [pendingDelete, setPendingDelete] = useState(null);
   const add = async (e) => {
     e.preventDefault();
     const n = name.trim();
@@ -24,22 +26,14 @@ export default function Rooms() {
     setName("");
     toast.success("Ambiente adicionado!");
   };
-  const remove = async (r) => {
-    if (tasks.some((t) => t.room === r))
-      return toast.error(
-        "Não é possível excluir: existem registros vinculados a este ambiente.",
-      );
-    if (confirm(`Remover ${r} da lista de ambientes?`)) {
-      if (
-        !(await setRooms((p, currentTasks) => {
-          if (currentTasks.some((t) => t.room === r)) throw new Error("room-in-use");
-          return p.filter((x) => x !== r);
-        }))
-      )
-        return;
-      toast.success("Ambiente removido.");
-    }
-  };
+  async function remove(room) {
+    const removed = await setRooms((current, currentTasks) => {
+      if (currentTasks.some(task => task.room === room)) throw new Error("room-in-use");
+      return current.filter(item => item !== room);
+    });
+    if (removed) toast.success("Ambiente removido.");
+    return removed;
+  }
   return (
     <div className="page">
       <div className="page-heading">
@@ -105,7 +99,7 @@ export default function Rooms() {
                 {canManage && (
                   <button
                     className="row-actions trash-btn"
-                    onClick={() => remove(r)}
+                    onClick={() => setPendingDelete(r)}
                     title="Remover ambiente"
                   >
                     <Trash2 size={15} />
@@ -126,6 +120,8 @@ export default function Rooms() {
           );
         })}
       </div>
+      {pendingDelete !== null && <DeleteConfirmation target={pendingDelete}
+        onClose={() => setPendingDelete(null)} onDelete={() => remove(pendingDelete)} />}
     </div>
   );
 }

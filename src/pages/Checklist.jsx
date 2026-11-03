@@ -1,3 +1,4 @@
+import DeleteConfirmation from '../components/DeleteConfirmation';
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -68,18 +69,28 @@ export default function Checklist() {
       return null;
     }
   });
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [sendingDraft, setSendingDraft] = useState(false);
 
   function saveDraft(form) {
-    if (draft && !confirm("Substituir o rascunho salvo neste dispositivo?")) return;
+    if (draft) {
+      setPendingDelete({ label: "o rascunho anterior para salvar o novo", action: () => persistDraft(form) });
+      return;
+    }
+    persistDraft(form);
+  }
+
+  function persistDraft(form) {
     const next = { id: "OS-" + crypto.randomUUID().slice(0, 8), form };
     try {
       localStorage.setItem(draftKey, JSON.stringify(next));
       setDraft(next);
       setModal(false);
       toast.success("Rascunho salvo neste dispositivo.");
+      return true;
     } catch {
       toast.error("Não foi possível salvar o rascunho neste dispositivo.");
+      return false;
     }
   }
 
@@ -87,8 +98,10 @@ export default function Checklist() {
     try {
       localStorage.removeItem(draftKey);
       setDraft(null);
+      return true;
     } catch {
       toast.error("Não foi possível limpar o rascunho deste dispositivo.");
+      return false;
     }
   }
 
@@ -127,11 +140,11 @@ export default function Checklist() {
     setEditing(t);
     setModal(true);
   };
-  const remove = async (t) => {
-    if (confirm(`Excluir o registro ${t.id}?`)) {
-      if (await deleteTask(t.id)) toast.success("Registro excluído.");
-    }
-  };
+  async function remove(id) {
+    const removed = await deleteTask(id);
+    if (removed) toast.success("Registro excluído.");
+    return removed;
+  }
   return (
     <div className="page">
       <div className="page-heading">
@@ -169,10 +182,7 @@ export default function Checklist() {
             <button
               className="btn btn-outline"
               disabled={sendingDraft}
-              onClick={() => {
-                if (confirm("Descartar o rascunho salvo neste dispositivo?"))
-                  clearDraft();
-              }}
+              onClick={() => setPendingDelete({ label: "o rascunho neste dispositivo", action: clearDraft })}
             >
               Descartar
             </button>
@@ -372,7 +382,7 @@ export default function Checklist() {
                         <button
                           title="Excluir"
                           aria-label={"Excluir chamado " + t.id}
-                          onClick={() => remove(t)}
+                          onClick={() => setPendingDelete({ label: "o chamado " + t.id, action: () => remove(t.id) })}
                         >
                           <Trash2 size={15} />
                         </button>
@@ -421,6 +431,8 @@ export default function Checklist() {
         rooms={rooms}
         task={editing}
       />
+      {pendingDelete && <DeleteConfirmation target={pendingDelete.label}
+        onClose={() => setPendingDelete(null)} onDelete={pendingDelete.action} />}
     </div>
   );
 }

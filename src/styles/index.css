@@ -1113,6 +1113,7 @@ main {
   padding: 10px;
   border-radius: 6px;
   color: rgb(245, 68, 68);
+  place-items: center;
 }
 .room-card-icon {
   width: 34px;

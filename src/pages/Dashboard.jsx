@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ClipboardList,
@@ -30,6 +30,7 @@ const icons = {
 export default function Dashboard() {
   const { tasks, rooms } = useApp(),
     nav = useNavigate();
+  const [saudacao, setSaudacao] = useState("");
   const stats = useMemo(
     () => ({
       total: tasks.length,
@@ -42,6 +43,17 @@ export default function Dashboard() {
     }),
     [tasks],
   );
+  useEffect(() => {
+    const hora = new Date().getHours();
+
+    if (hora >= 5 && hora < 12) {
+      setSaudacao("Bom dia! ☀️");
+    } else if (hora >= 12 && hora < 18) {
+      setSaudacao("Boa tarde! 🌤️");
+    } else {
+      setSaudacao("Boa noite! 🌙");
+    }
+  }, []);
   const recent = tasks.slice(0, 5);
   const categories = Object.keys(icons)
     .map((name) => ({ name, count: tasks.filter((t) => t.category === name).length }))
@@ -53,7 +65,7 @@ export default function Dashboard() {
         <div>
           <span className="eyebrow">PAINEL DE CONTROLE</span>
           <h1>
-            Bom dia! <span className="wave">✦</span>
+            {saudacao} <span className="wave">✦</span>
           </h1>
           <p>Acompanhe as necessidades e os atendimentos de TI da escola.</p>
         </div>

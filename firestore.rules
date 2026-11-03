@@ -9,8 +9,21 @@ service cloud.firestore {
       return request.auth != null && profile().role == 'master';
     }
 
+    function validWhatsApp(number) {
+      return number is string && number.matches('^[1-9][0-9]{7,14}$');
+    }
+
+    match /settings/support {
+      allow get: if request.auth != null
+        && profile().get('disabled', false) == false
+        && profile().role in ['master', 'admin', 'tecnico'];
+      allow create, update: if master()
+        && request.resource.data.keys().hasOnly(['whatsapp'])
+        && (request.resource.data.whatsapp == '' || validWhatsApp(request.resource.data.whatsapp));
+    }
+
     function validRequest(data) {
-      return data.keys().hasOnly(['role', 'school', 'email'])
+      return data.keys().hasOnly(['role', 'school', 'email', 'whatsapp'])
         && data.role in ['admin', 'tecnico']
         && data.email is string
         && data.school is string
@@ -21,6 +34,8 @@ service cloud.firestore {
     match /requests/{uid} {
       allow create: if request.auth != null && request.auth.uid == uid
         && validRequest(request.resource.data)
+        && (request.resource.data.role != 'admin' || validWhatsApp(request.resource.data.get('whatsapp', '')))
+        && (!('whatsapp' in request.resource.data) || validWhatsApp(request.resource.data.whatsapp))
         && request.resource.data.email == request.auth.token.email
         && !exists(/databases/$(database)/documents/roles/$(uid));
       allow get: if master() || (request.auth != null && request.auth.uid == uid);
@@ -30,22 +45,107 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
         && request.resource.data.status == 'rejected';
       allow delete: if master()
-        && getAfter(/databases/$(database)/documents/roles/$(uid)).data == resource.data;
+        && getAfter(/databases/$(database)/documents/roles/$(uid)).data.diff(resource.data).affectedKeys().hasOnly(["schoolId", "school"]);
     }
 
     match /roles/{uid} {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow list: if master();
       allow create: if master()
-        && validRequest(request.resource.data)
-        && request.resource.data == get(/databases/$(database)/documents/requests/$(uid)).data
+        && request.resource.data.schoolId is string
+        && request.resource.data.school is string
+        && validRequest(get(/databases/$(database)/documents/requests/$(uid)).data)
+        && request.resource.data.diff(get(/databases/$(database)/documents/requests/$(uid)).data).affectedKeys().hasOnly(['schoolId', 'school'])
         && !existsAfter(/databases/$(database)/documents/requests/$(uid));
+      allow update: if master()
+        && resource.data.role in ['admin', 'tecnico']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['schoolId', 'school', 'disabled'])
+        && request.resource.data.disabled is bool
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['schoolId', 'school'])
+          || (request.resource.data.schoolId is string && request.resource.data.school is string));
+
+    }
+
+    match /schoolDirectory/{key} {
+      allow get, list, create: if master();
+    }
+
+    function activeSchoolMember(schoolId, roles) {
+      return request.auth != null
+        && profile().get('disabled', false) == false
+        && profile().get('schoolId', '') == schoolId
+        && profile().role in roles;
+    }
+
+    match /schoolSummaries/{schoolId} {
+      function workspace() {
+        return /databases/$(database)/documents/schools/$(schoolId)/data/workspace;
+      }
+
+      allow list, get: if master();
+      allow create, update: if activeSchoolMember(schoolId, ['master', 'admin', 'tecnico'])
+        && request.resource.data.keys().hasOnly(['rooms', 'open'])
+        && request.resource.data.rooms is int
+        && request.resource.data.open is int
+        && request.resource.data.open >= 0
+        && (existsAfter(workspace())
+          ? (request.resource.data.rooms == getAfter(workspace()).data.rooms.size()
+            && request.resource.data.open <= getAfter(workspace()).data.tasksById.size())
+          : (request.resource.data.rooms == 0 && request.resource.data.open == 0));
+    }
+
+    match /schoolSupport/{id} {
+      function validText(value) {
+        return value is string && value.size() > 0 && value.size() <= 2000;
+      }
+
+      allow get, list: if master()
+        || activeSchoolMember(resource.data.schoolId, ['admin']);
+      allow create: if activeSchoolMember(request.resource.data.schoolId, ['master', 'admin'])
+        && request.resource.data.keys().hasOnly(['schoolId', 'schoolName', 'authorUid', 'message', 'status', 'createdAt', 'subject', 'priority'])
+        && request.resource.data.authorUid == request.auth.uid
+        && request.resource.data.schoolName == profile().get('school', 'Escola vinculada')
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time
+        && validText(request.resource.data.message)
+        && request.resource.data.subject is string
+        && request.resource.data.subject.size() > 0
+        && request.resource.data.subject.size() <= 120
+        && request.resource.data.priority in ['normal', 'high', 'urgent'];
+      allow update: if master()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['response', 'status', 'updatedAt'])
+        && request.resource.data.status in ['open', 'progress', 'resolved']
+        && request.resource.data.updatedAt == request.time
+        && validText(request.resource.data.response);
+    }
+
+    match /schools/{schoolId}/data/workspace {
+      function member() {
+        return request.auth != null
+          && profile().get('disabled', false) == false
+          && profile().schoolId == schoolId
+          && profile().role in ['master', 'admin', 'tecnico'];
+      }
+
+      function validWorkspace() {
+        return request.resource.data.keys().hasOnly(['rooms', 'tasksById'])
+          && request.resource.data.rooms is list
+          && request.resource.data.tasksById is map;
+      }
+
+      allow get: if member();
+      allow create: if member() && validWorkspace()
+        && (profile().role in ['master', 'admin'] || request.resource.data.rooms.size() == 0);
+      allow update: if member() && validWorkspace()
+        && (profile().role in ['master', 'admin']
+          || (request.resource.data.rooms == resource.data.rooms
+            && request.resource.data.tasksById.diff(resource.data.tasksById).removedKeys().size() == 0));
     }
 
     match /users/{uid}/data/workspace {
       allow read, create, update: if request.auth != null && request.auth.uid == uid
+        && profile().get('disabled', false) == false
         && profile().role in ['master', 'admin', 'tecnico'];
     }
   }
 }
-

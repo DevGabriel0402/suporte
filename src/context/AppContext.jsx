@@ -1,44 +1,136 @@
-import { createContext, useContext, useEffect, useState } from 'react';
-import toast from 'react-hot-toast';
+import Loading from '../components/Loading';
+import { createContext, useContext, useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 const AppContext = createContext(null);
 const empty = { rooms: [], tasks: [] };
 
-export function AppProvider({ children, client, uid }) {
+export function AppProvider({ children, client, uid, schoolId, canManage, canImport }) {
   const { store, db } = client;
-  const ref = store.doc(db, 'users', uid, 'data', 'workspace');
+  const scope = schoolId ? "schools" : "users";
+  const workspaceId = schoolId ?? uid;
+  const ref = store.doc(db, scope, workspaceId, "data", "workspace");
+
+  function readData(snapshot) {
+    const data = { ...empty, ...snapshot.data() };
+    return schoolId ? { ...data, tasks: Object.values(data.tasksById ?? {}) } : data;
+  }
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
 
-  useEffect(() => store.onSnapshot(store.doc(db, 'users', uid, 'data', 'workspace'),
-    snapshot => setData({ ...empty, ...snapshot.data() }),
-    () => setError(true)), [store, db, uid]);
+  useEffect(
+    () =>
+      store.onSnapshot(
+        store.doc(db, scope, workspaceId, "data", "workspace"),
+        (snapshot) => setData(readData(snapshot)),
+        () => setError(true),
+      ),
+    [store, db, scope, workspaceId, schoolId],
+  );
 
-  function change(field, update) {
-    return store.runTransaction(db, async transaction => {
-      const snapshot = await transaction.get(ref);
-      const current = { ...empty, ...snapshot.data() };
-      transaction.set(ref, { [field]: typeof update === 'function' ? update(current[field]) : update }, { merge: true });
-    }).catch(() => toast.error('Não foi possível salvar. Verifique a conexão e tente novamente.'));
+  function writeSummary(transaction, workspace) {
+    transaction.set(store.doc(db, 'schoolSummaries', schoolId), {
+      rooms: workspace.rooms.length,
+      open: workspace.tasks.filter(task => !['Concluído', 'Cancelado'].includes(task.status)).length,
+    });
   }
 
-  if (error || !data) return <main className="login-screen">
-    <p role={error ? 'alert' : 'status'}>{error ? 'Não foi possível carregar os dados do Firestore.' : 'Carregando dados…'}</p>
-  </main>;
+  async function syncSummary() {
+    try {
+      await store.runTransaction(db, async transaction => {
+        writeSummary(transaction, readData(await transaction.get(ref)));
+      });
+      toast.success('Indicadores atualizados.');
+    } catch {
+      toast.error('Não foi possível atualizar os indicadores.');
+    }
+  }
+
+  function change(field, update) {
+    return store
+      .runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(ref);
+        const current = readData(snapshot);
+        const next =
+          typeof update === "function" ? update(current[field], current) : update;
+        if (schoolId) {
+          const merged = { ...current, [field]: next };
+          writeSummary(transaction, merged);
+          transaction.set(ref, {
+            rooms: merged.rooms,
+            tasksById: Object.fromEntries(merged.tasks.map((task) => [task.id, task])),
+          });
+        } else {
+          transaction.set(ref, { [field]: next }, { merge: true });
+        }
+      })
+      .then(() => true)
+      .catch((error) => {
+        toast.error(
+          error.message === "room-in-use"
+            ? "Existem registros vinculados a este ambiente."
+            : "Não foi possível salvar. Verifique a conexão e as permissões.",
+        );
+        return false;
+      });
+  }
+
+  async function importLegacyRooms() {
+    try {
+      const personal = await store.getDocFromServer(
+        store.doc(db, "users", uid, "data", "workspace"),
+      );
+      const previous = personal.data()?.rooms ?? [];
+      if (!previous.length) {
+        toast("Nenhum ambiente encontrado no espaço individual.");
+        return;
+      }
+      const saved = await change("rooms", (rooms) => {
+        const byName = new Map(rooms.map((room) => [room.trim().toLowerCase(), room]));
+        for (const room of previous) {
+          const key = room.trim().toLowerCase();
+          if (key && !byName.has(key)) byName.set(key, room);
+        }
+        return [...byName.values()];
+      });
+      if (saved) toast.success("Ambientes sincronizados com a escola.");
+    } catch {
+      toast.error("Não foi possível consultar os ambientes do espaço individual.");
+    }
+  }
+
+  if (error || !data)
+    return (
+      <main className="login-screen">
+        <p role={error ? "alert" : "status"}>
+          {error
+            ? "Não foi possível carregar os dados do Firestore."
+            : <Loading label="Carregando dados…" inline />}
+        </p>
+      </main>
+    );
 
   const value = {
     ...data,
-    setRooms: update => change('rooms', update),
-    setTasks: update => change('tasks', update),
-    addTask: task => {
-      const id = 'OS-' + crypto.randomUUID().slice(0, 8);
-      return change('tasks', tasks => [{ ...task, id }, ...tasks]);
+    canManage,
+    syncSummary: schoolId && canManage ? syncSummary : undefined,
+    draftKey: JSON.stringify(["cti-draft", uid, scope, workspaceId]),
+    importLegacyRooms: canImport && schoolId ? importLegacyRooms : undefined,
+    setRooms: (update) =>
+      change("rooms", (rooms, current) => update(rooms, current.tasks)),
+
+    addTask: (task, id = "OS-" + crypto.randomUUID().slice(0, 8)) => {
+
+      return change("tasks", (tasks) => tasks.some(item => item.id === id) ? tasks : [{ ...task, id }, ...tasks]);
     },
-    updateTask: task => change('tasks', tasks => tasks.map(item => item.id === task.id ? task : item)),
-    deleteTask: id => change('tasks', tasks => tasks.filter(task => task.id !== id)),
+    updateTask: (task) =>
+      change("tasks", (tasks) =>
+        tasks.map((item) => (item.id === task.id ? task : item)),
+      ),
+    deleteTask: (id) =>
+      change("tasks", (tasks) => tasks.filter((task) => task.id !== id)),
   };
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export const useApp = () => useContext(AppContext);
-

@@ -1,4 +1,4 @@
-import DeleteConfirmation from '../components/DeleteConfirmation';
+import DeleteConfirmation from "../components/DeleteConfirmation";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -74,7 +74,10 @@ export default function Checklist() {
 
   function saveDraft(form) {
     if (draft) {
-      setPendingDelete({ label: "o rascunho anterior para salvar o novo", action: () => persistDraft(form) });
+      setPendingDelete({
+        label: "o rascunho anterior para salvar o novo",
+        action: () => persistDraft(form),
+      });
       return;
     }
     persistDraft(form);
@@ -182,7 +185,12 @@ export default function Checklist() {
             <button
               className="btn btn-outline"
               disabled={sendingDraft}
-              onClick={() => setPendingDelete({ label: "o rascunho neste dispositivo", action: clearDraft })}
+              onClick={() =>
+                setPendingDelete({
+                  label: "o rascunho neste dispositivo",
+                  action: clearDraft,
+                })
+              }
             >
               Descartar
             </button>
@@ -382,7 +390,12 @@ export default function Checklist() {
                         <button
                           title="Excluir"
                           aria-label={"Excluir chamado " + t.id}
-                          onClick={() => setPendingDelete({ label: "o chamado " + t.id, action: () => remove(t.id) })}
+                          onClick={() =>
+                            setPendingDelete({
+                              label: "o chamado " + t.id,
+                              action: () => remove(t.id),
+                            })
+                          }
                         >
                           <Trash2 size={15} />
                         </button>
@@ -431,8 +444,13 @@ export default function Checklist() {
         rooms={rooms}
         task={editing}
       />
-      {pendingDelete && <DeleteConfirmation target={pendingDelete.label}
-        onClose={() => setPendingDelete(null)} onDelete={pendingDelete.action} />}
+      {pendingDelete && (
+        <DeleteConfirmation
+          target={pendingDelete.label}
+          onClose={() => setPendingDelete(null)}
+          onDelete={pendingDelete.action}
+        />
+      )}
     </div>
   );
 }

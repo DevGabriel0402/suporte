@@ -2638,3 +2638,8 @@ button.stat-card:hover {
     opacity: 1;
   }
 }
+.pwa-actions:has(.pwa-install-help:only-child){padding:0;background:transparent;border:0;box-shadow:none}
+.pwa-actions .pwa-install-help{min-height:44px;background:#ffffffb8;border-color:#cbd5e199;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 3px 12px #17264012}
+.pwa-install-help svg{opacity:.6}
+.pwa-install-help:hover,.pwa-install-help:focus-visible{background:#fffffff0}
+.pwa-install-help:hover svg,.pwa-install-help:focus-visible svg{opacity:1}

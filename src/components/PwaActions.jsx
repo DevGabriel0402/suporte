@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react';
 import { useEffect, useState } from "react";
 
 export default function PwaActions() {
@@ -80,11 +81,11 @@ export default function PwaActions() {
       )}
       {!install && ios && (
         <button
-          className="btn btn-outline"
+          className="btn btn-outline pwa-install-help"
           aria-expanded={showHelp}
           onClick={() => setShowHelp(!showHelp)}
         >
-          Como instalar
+          <Download size={16} aria-hidden="true" /> Como instalar
         </button>
       )}
       {showHelp && (

@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function profile() {
+      return get(/databases/$(database)/documents/roles/$(request.auth.uid)).data;
+    }
+
+    function master() {
+      return request.auth != null && profile().role == 'master';
+    }
+
+    function validRequest(data) {
+      return data.keys().hasOnly(['role', 'school', 'email'])
+        && data.role in ['admin', 'tecnico']
+        && data.email is string
+        && data.school is string
+        && data.school.size() > 0
+        && data.school.size() <= 160;
+    }
+
+    match /requests/{uid} {
+      allow create: if request.auth != null && request.auth.uid == uid
+        && validRequest(request.resource.data)
+        && request.resource.data.email == request.auth.token.email
+        && !exists(/databases/$(database)/documents/roles/$(uid));
+      allow get: if master() || (request.auth != null && request.auth.uid == uid);
+      allow list: if master();
+      allow update: if master()
+        && !('status' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'rejected';
+      allow delete: if master()
+        && getAfter(/databases/$(database)/documents/roles/$(uid)).data == resource.data;
+    }
+
+    match /roles/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if master();
+      allow create: if master()
+        && validRequest(request.resource.data)
+        && request.resource.data == get(/databases/$(database)/documents/requests/$(uid)).data
+        && !existsAfter(/databases/$(database)/documents/requests/$(uid));
+    }
+
+    match /users/{uid}/data/workspace {
+      allow read, create, update: if request.auth != null && request.auth.uid == uid
+        && profile().role in ['master', 'admin', 'tecnico'];
+    }
+  }
+}
+

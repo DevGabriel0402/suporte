@@ -1,7 +1,10 @@
+import { localDate, taskFields } from '../utils/taskHistory';
 import { useEffect, useRef, useState } from "react";
 import { X, Save } from "lucide-react";
 const blank = {
   room: "",
+  assignee: "",
+  dueDate: "",
   date: new Date().toISOString().slice(0, 10),
   category: "Suporte",
   description: "",
@@ -20,7 +23,7 @@ export default function TaskModal({ open, onClose, onSave, onDraft, rooms, task 
 
   useEffect(() => {
     if (!open) return;
-    setForm(task ? { ...task } : { ...blank, room: initialRoom.current });
+    setForm(task ? { ...blank, ...task } : { ...blank, date: localDate(), room: initialRoom.current });
     const dialog = drawer.current;
     dialog.showModal();
     const previousOverflow = document.body.style.overflow;
@@ -136,9 +139,18 @@ export default function TaskModal({ open, onClose, onSave, onDraft, rooms, task 
                 ))}
               </select>
             </label>
+            <label>
+              Responsável
+              <input maxLength={120} placeholder="Nome de quem fará o atendimento" value={form.assignee} onChange={e => set("assignee", e.target.value)} />
+            </label>
+            <label>
+              Prazo para atendimento
+              <input type="date" value={form.dueDate} onChange={e => set("dueDate", e.target.value)} />
+            </label>
             <label className="full">
               O que precisa ser feito? *
               <textarea
+                maxLength={4000}
                 required
                 rows="3"
                 placeholder="Descreva o problema ou serviço necessário..."
@@ -149,6 +161,7 @@ export default function TaskModal({ open, onClose, onSave, onDraft, rooms, task 
             <label className="full">
               Materiais necessários
               <textarea
+                maxLength={4000}
                 rows="2"
                 placeholder="Ex.: 1 teclado USB, 10 m de cabo de rede..."
                 value={form.materials}
@@ -186,6 +199,7 @@ export default function TaskModal({ open, onClose, onSave, onDraft, rooms, task 
             <label className="full">
               Observações
               <textarea
+                maxLength={4000}
                 rows="2"
                 placeholder="Número de protocolo, retorno da direção, detalhes adicionais..."
                 value={form.notes}
@@ -193,6 +207,17 @@ export default function TaskModal({ open, onClose, onSave, onDraft, rooms, task 
               />
             </label>
           </div>
+          {task && <section className="task-history" aria-label="Histórico do chamado">
+            <h3>Histórico do chamado</h3>
+            {!task.history?.length && <p>Este registro é anterior ao histórico. As próximas alterações aparecerão aqui.</p>}
+            <ol>{[...(task.history || [])].reverse().map(entry => <li key={entry.id}>
+              <strong>{entry.action === "created" ? "Chamado criado" : "Chamado atualizado"}</strong>
+              <p>{entry.actor?.name || "Usuário"} · {new Date(entry.at).toLocaleString("pt-BR")}</p>
+              {entry.changes?.map(change => <p key={change.field}>
+                <b>{taskFields[change.field] || change.field}:</b> {String(change.before === true ? "Sim" : change.before === false ? "Não" : change.before || "Não definido")} → {String(change.after === true ? "Sim" : change.after === false ? "Não" : change.after || "Não definido")}
+              </p>)}
+            </li>)}</ol>
+          </section>}
           <div className="modal-footer">
             <span className="required-note">* Campos obrigatórios</span>
             <div>

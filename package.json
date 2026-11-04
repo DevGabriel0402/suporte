@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test scripts/task-history.test.mjs",
+    "test:security": "firebase emulators:exec --only firestore --project demo-conectati-security \"node --test --test-concurrency=1 tests/security/firestore.test.mjs\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -19,10 +21,13 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.5.2",
     "react-router-dom": "^6.28.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "firebase": "^13.2.0",
+    "firebase-tools": "^15.34.2",
     "vite": "^6.0.5"
   }
 }

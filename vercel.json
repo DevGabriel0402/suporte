@@ -1,6 +1,22 @@
 {
   "routes": [
-    { "handle": "filesystem" },
-    { "src": "/[^.]*", "dest": "/index.html" }
+    {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+        "Content-Security-Policy": "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+      },
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/[^.]*",
+      "dest": "/index.html"
+    }
   ]
 }

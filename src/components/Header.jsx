@@ -10,9 +10,11 @@ const titles = {
   "/master": "Painel master",
 };
 
-export default function Header({ onMenu, open, masterPage, tools, account }) {
+export default function Header({ onMenu, open, masterPage, tools, account, schoolName }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const schoolInitials = (schoolName || "").trim().split(/\s+/).filter(Boolean)
+    .map(word => Array.from(word)[0]).join("").toLocaleUpperCase("pt-BR");
   return (
     <header className="topbar">
       {tools}
@@ -32,6 +34,9 @@ export default function Header({ onMenu, open, masterPage, tools, account }) {
         <strong>{titles[pathname] || "Gestão"}</strong>
       </div>
       <div className="top-actions">
+        {schoolInitials && <span className="school-initials" title={schoolName} aria-label={`Escola: ${schoolName}`}>
+          {schoolInitials}
+        </span>}
         {!masterPage && (
           <button
             type="button"

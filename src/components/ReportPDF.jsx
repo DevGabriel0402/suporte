@@ -106,7 +106,8 @@ export default function ReportPDF({ items, title }) {
                 {item.requested ? "encaminhado" : "sem encaminhamento"}
               </Text>
             </View>
-            <Text style={s.detail}>{item.description}</Text>
+            <Text style={s.detail}>Responsável: {item.assignee || "Não definido"} · Prazo: {item.dueDate ? formatDate(item.dueDate) : "Sem prazo"}</Text>
+                <Text style={s.detail}>{item.description}</Text>
             {item.materials && <Text style={s.detail}>Materiais: {item.materials}</Text>}
             {item.notes && <Text style={s.detail}>Observações: {item.notes}</Text>}
           </View>

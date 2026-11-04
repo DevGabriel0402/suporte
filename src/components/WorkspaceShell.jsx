@@ -4,7 +4,7 @@ import { useLocation } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 
-export default function WorkspaceShell({ children, master, schoolSupport, supportUrl, email, onSignOut }) {
+export default function WorkspaceShell({ children, master, schoolSupport, supportUrl, schoolName, email, onSignOut }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("cti_sidebar") === "collapsed",
@@ -27,6 +27,7 @@ export default function WorkspaceShell({ children, master, schoolSupport, suppor
           onMenu={() => setOpen(true)}
           open={open}
           masterPage={masterPage}
+          schoolName={schoolName}
           tools={
             <>
               <button

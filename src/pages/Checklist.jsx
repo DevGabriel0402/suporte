@@ -1,3 +1,4 @@
+import { isOverdue } from '../utils/taskHistory';
 import DeleteConfirmation from "../components/DeleteConfirmation";
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -21,6 +22,7 @@ import TaskModal from "../components/TaskModal";
 import { exportCSV, exportExcel, printReport } from "../utils/export";
 export default function Checklist() {
   const { tasks, rooms, addTask, updateTask, deleteTask, canManage, draftKey } = useApp();
+  const [onlyOverdue, setOnlyOverdue] = useState(false);
   const [params, setParams] = useSearchParams();
   const [modal, setModal] = useState(false),
     [editing, setEditing] = useState(null),
@@ -48,6 +50,7 @@ export default function Checklist() {
       tasks
         .filter(
           (t) =>
+            (!onlyOverdue || isOverdue(t)) &&
             (room === "Todas as salas" || t.room === room) &&
             (status === "Todos os status" ||
               (status === "Aguardando" &&
@@ -55,12 +58,12 @@ export default function Checklist() {
               (status === "Solicitado à direção" ? t.requested : t.status === status)) &&
             (category === "Todas as categorias" || t.category === category) &&
             (!period || t.date === period) &&
-            `${t.description} ${t.room} ${t.id} ${t.materials}`
+            `${t.description} ${t.room} ${t.id} ${t.materials} ${t.assignee || ""}`
               .toLowerCase()
               .includes(search.toLowerCase()),
         )
         .sort((a, b) => b.date.localeCompare(a.date)),
-    [tasks, room, status, category, period, search],
+    [tasks, room, status, category, period, search, onlyOverdue],
   );
   const [draft, setDraft] = useState(() => {
     try {
@@ -130,7 +133,7 @@ export default function Checklist() {
 
   const save = async (form) => {
     if (editing) {
-      if (!(await updateTask({ ...form, id: editing.id }))) return;
+      if (!(await updateTask({ ...form, id: editing.id }, editing))) return;
       toast.success("Registro atualizado com sucesso!");
     } else {
       if (!(await addTask(form))) return;
@@ -226,6 +229,9 @@ export default function Checklist() {
             />
           </div>
           <div className="filters">
+            <button className="btn btn-outline btn-sm" aria-pressed={onlyOverdue} onClick={() => setOnlyOverdue(value => !value)}>
+              {onlyOverdue ? "✓ " : ""}Somente atrasados
+            </button>
             <select value={room} onChange={(e) => setRoom(e.target.value)}>
               <option>Todas as salas</option>
               {rooms.map((r) => (
@@ -368,6 +374,10 @@ export default function Checklist() {
                   </td>
                   <td>
                     <StatusBadge status={t.status} />
+                    <span className="cell-muted">Responsável: {t.assignee || "Não definido"}</span>
+                    {t.dueDate && <span className={isOverdue(t) ? "task-overdue" : "cell-muted"}>
+                      {isOverdue(t) ? "Atrasado · " : "Prazo: "}{new Date(t.dueDate + "T12:00:00").toLocaleDateString("pt-BR")}
+                    </span>}
                     {t.priority && (
                       <span className="cell-muted">Prioridade {t.priority}</span>
                     )}
@@ -414,6 +424,7 @@ export default function Checklist() {
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => {
+                  setOnlyOverdue(false);
                   setSearch("");
                   setRoom("Todas as salas");
                   setStatus("Todos os status");

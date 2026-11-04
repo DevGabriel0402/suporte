@@ -1,3 +1,4 @@
+import { taskFields, updateWithHistory } from '../utils/taskHistory';
 import Loading from '../components/Loading';
 import { createContext, useContext, useEffect, useState } from "react";
 import toast from "react-hot-toast";
@@ -13,7 +14,7 @@ export function AppProvider({ children, client, uid, schoolId, canManage, canImp
 
   function readData(snapshot) {
     const data = { ...empty, ...snapshot.data() };
-    return schoolId ? { ...data, tasks: Object.values(data.tasksById ?? {}) } : data;
+    return schoolId || data.tasksById ? { ...data, tasks: Object.values(data.tasksById ?? {}) } : data;
   }
   const [data, setData] = useState(null);
   const [error, setError] = useState(false);
@@ -46,23 +47,36 @@ export function AppProvider({ children, client, uid, schoolId, canManage, canImp
     }
   }
 
-  function change(field, update) {
+  async function change(field, update) {
+    if (!schoolId && !data?.tasksById && data?.tasks?.length) {
+      try {
+        await store.runTransaction(db, async transaction => {
+          const snapshot = await transaction.get(ref);
+          const legacy = snapshot.data();
+          if (legacy?.tasksById || !legacy?.tasks?.length) return;
+          transaction.set(ref, { rooms: legacy.rooms || [], tasksById: Object.fromEntries(legacy.tasks.map(task => [task.id, task])), mutationTaskId: "" });
+        });
+      } catch {
+        toast.error("Não foi possível atualizar o espaço individual. Verifique as permissões.");
+        return false;
+      }
+    }
     return store
       .runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(ref);
         const current = readData(snapshot);
         const next =
           typeof update === "function" ? update(current[field], current) : update;
-        if (schoolId) {
-          const merged = { ...current, [field]: next };
-          writeSummary(transaction, merged);
-          transaction.set(ref, {
-            rooms: merged.rooms,
-            tasksById: Object.fromEntries(merged.tasks.map((task) => [task.id, task])),
-          });
-        } else {
-          transaction.set(ref, { [field]: next }, { merge: true });
-        }
+        const merged = { ...current, [field]: next };
+        const previousTasks = Object.fromEntries(current.tasks.map(task => [task.id, task]));
+        const changed = merged.tasks.find(task => task !== previousTasks[task.id]);
+        const removed = current.tasks.find(task => !merged.tasks.some(nextTask => nextTask.id === task.id));
+        if (schoolId) writeSummary(transaction, merged);
+        transaction.set(ref, {
+          rooms: merged.rooms,
+          tasksById: Object.fromEntries(merged.tasks.map(task => [task.id, task])),
+          mutationTaskId: changed?.id || removed?.id || "",
+        });
       })
       .then(() => true)
       .catch((error) => {
@@ -110,6 +124,7 @@ export function AppProvider({ children, client, uid, schoolId, canManage, canImp
       </main>
     );
 
+  const actor = { uid, name: client.auth.currentUser?.displayName || client.auth.currentUser?.email || "Usuário" };
   const value = {
     ...data,
     canManage,
@@ -120,13 +135,18 @@ export function AppProvider({ children, client, uid, schoolId, canManage, canImp
       change("rooms", (rooms, current) => update(rooms, current.tasks)),
 
     addTask: (task, id = "OS-" + crypto.randomUUID().slice(0, 8)) => {
-
-      return change("tasks", (tasks) => tasks.some(item => item.id === id) ? tasks : [{ ...task, id }, ...tasks]);
+      const fields = Object.fromEntries(Object.keys(taskFields).map(key => [key, task[key] ?? (key === "requested" ? false : "")]));
+      const entry = { ...fields, id, history: [{ id: crypto.randomUUID(), action: "created", actor, at: new Date().toISOString(), changes: [] }] };
+      return change("tasks", tasks => tasks.some(item => item.id === id) ? tasks : [entry, ...tasks]);
     },
-    updateTask: (task) =>
-      change("tasks", (tasks) =>
-        tasks.map((item) => (item.id === task.id ? task : item)),
-      ),
+    updateTask: (task, original) => {
+      const at = new Date().toISOString();
+      const eventId = crypto.randomUUID();
+      return change("tasks", tasks => {
+        if (!tasks.some(item => item.id === task.id)) throw new Error("task-not-found");
+        return tasks.map(item => item.id === task.id ? updateWithHistory(item, task, original, actor, at, eventId) : item);
+      });
+    },
     deleteTask: (id) =>
       change("tasks", (tasks) => tasks.filter((task) => task.id !== id)),
   };

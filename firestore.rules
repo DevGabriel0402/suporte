@@ -6,7 +6,7 @@ service cloud.firestore {
     }
 
     function master() {
-      return request.auth != null && profile().role == 'master';
+      return request.auth != null && profile().get('disabled', false) == false && profile().role == 'master';
     }
 
     function validWhatsApp(number) {
@@ -119,33 +119,72 @@ service cloud.firestore {
         && validText(request.resource.data.response);
     }
 
+
+    function boundedText(value, max) {
+      return value is string && value.size() <= max;
+    }
+    function validTask(t, id, rooms) {
+      return t is map
+        && t.keys().hasOnly(['id', 'room', 'date', 'category', 'description', 'materials', 'status', 'requested', 'priority', 'notes', 'assignee', 'dueDate', 'history'])
+        && t.id == id && boundedText(t.id, 100)
+        && t.room is string && t.room in rooms
+        && t.date is string && t.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && t.category in ['Suporte', 'Infraestrutura', 'Material', 'Rede e internet', 'Software', 'Manutenção', 'Outro']
+        && boundedText(t.description, 4000) && t.description.size() > 0
+        && boundedText(t.get('materials', ''), 4000)
+        && boundedText(t.get('notes', ''), 4000)
+        && boundedText(t.get('assignee', ''), 120)
+        && t.get('dueDate', '') is string
+        && (t.get('dueDate', '') == '' || t.dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))
+        && t.status in ['Pendente', 'Em andamento', 'Aguardando aprovação', 'Concluído', 'Cancelado']
+        && t.requested is bool
+        && t.priority in ['Baixa', 'Média', 'Alta', 'Urgente']
+        && t.get('history', []) is list && t.get('history', []).size() <= 1000;
+    }
+    // A mutation identifies exactly one task so all changed data can be validated.
+    function validWorkspace(manager, creating) {
+      let next = request.resource.data;
+      let old = creating ? {} : resource.data.get('tasksById', {});
+      let id = next.get('mutationTaskId', '');
+      let changes = next.tasksById.diff(old);
+      return (creating || 'tasksById' in resource.data || resource.data.get('tasks', []).size() == 0)
+        && next.keys().hasOnly(['rooms', 'tasksById', 'mutationTaskId', 'tasks'])
+        && next.rooms is list && next.rooms.size() <= 200
+        && next.rooms.toSet().size() == next.rooms.size()
+        && next.tasksById is map && next.tasksById.size() <= 2000
+        && id is string && id.size() <= 100
+        && (manager || (creating ? next.rooms.size() == 0 : next.rooms == resource.data.rooms))
+        && (!('tasks' in next) || (!creating && next.tasks == resource.data.get('tasks', [])))
+        && changes.affectedKeys().hasOnly([id])
+        && (changes.affectedKeys().size() == 0
+          || (id in next.tasksById
+            ? validTask(next.tasksById[id], id, next.rooms)
+            : manager));
+    }
     match /schools/{schoolId}/data/workspace {
-      function member() {
-        return request.auth != null
+      allow get: if activeSchoolMember(schoolId, ['master', 'admin', 'tecnico']);
+      allow create: if activeSchoolMember(schoolId, ['master', 'admin', 'tecnico'])
+        && validWorkspace(profile().role in ['master', 'admin'], true);
+      allow update: if activeSchoolMember(schoolId, ['master', 'admin', 'tecnico'])
+        && validWorkspace(profile().role in ['master', 'admin'], false);
+    }
+    match /users/{uid}/data/workspace {
+      function owner() {
+        return request.auth != null && request.auth.uid == uid
           && profile().get('disabled', false) == false
-          && profile().schoolId == schoolId
           && profile().role in ['master', 'admin', 'tecnico'];
       }
-
-      function validWorkspace() {
-        return request.resource.data.keys().hasOnly(['rooms', 'tasksById'])
-          && request.resource.data.rooms is list
-          && request.resource.data.tasksById is map;
-      }
-
-      allow get: if member();
-      allow create: if member() && validWorkspace()
-        && (profile().role in ['master', 'admin'] || request.resource.data.rooms.size() == 0);
-      allow update: if member() && validWorkspace()
-        && (profile().role in ['master', 'admin']
-          || (request.resource.data.rooms == resource.data.rooms
-            && request.resource.data.tasksById.diff(resource.data.tasksById).removedKeys().size() == 0));
-    }
-
-    match /users/{uid}/data/workspace {
-      allow read, create, update: if request.auth != null && request.auth.uid == uid
-        && profile().get('disabled', false) == false
-        && profile().role in ['master', 'admin', 'tecnico'];
+      allow get: if owner();
+      // Legacy personal arrays remain readable for room import; new writes use validated maps.
+      allow create: if owner() && validWorkspace(profile().role in ['master', 'admin'], true);
+      allow update: if owner() && (validWorkspace(profile().role in ['master', 'admin'], false)
+        || (!('tasksById' in resource.data)
+          && request.resource.data.keys().hasOnly(['rooms', 'tasksById', 'mutationTaskId'])
+          && request.resource.data.rooms == resource.data.rooms
+          && request.resource.data.mutationTaskId == ''
+          && request.resource.data.tasksById is map
+          && request.resource.data.tasksById.values().toSet() == resource.data.get('tasks', []).toSet()
+          && request.resource.data.tasksById.size() == resource.data.get('tasks', []).size()));
     }
   }
 }

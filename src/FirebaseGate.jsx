@@ -714,6 +714,7 @@ function WorkspaceAccess({ client, user, children, onSignOut }) {
         master={profile.role === "master"}
         supportUrl={whatsappLink(supportContact)}
         schoolSupport={Boolean(profile.schoolId) && ["admin", "master"].includes(profile.role)}
+        schoolName={profile.school || ""}
         email={user.email}
         onSignOut={onSignOut}
       >

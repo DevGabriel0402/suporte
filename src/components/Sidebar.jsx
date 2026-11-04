@@ -8,6 +8,7 @@ import {
   Headset,
   MessageCircle,
   X,
+  Download,
 } from "lucide-react";
 
 const links = [
@@ -63,6 +64,9 @@ export default function Sidebar({ open, onClose, master, schoolSupport, supportU
             </NavLink>
           ))}
         </nav>
+        <a className="nav-link" href="/guias/guia-conecta-ti.pdf" download="Guia-Conecta-TI.pdf" onClick={onClose} title="Baixar guia completo em PDF">
+          <Download size={20} /><span>Baixar guia em PDF</span>
+        </a>
         {supportUrl && (
           <a
             className="nav-link sidebar-support"
@@ -81,3 +85,4 @@ export default function Sidebar({ open, onClose, master, schoolSupport, supportU
     </>
   );
 }
+

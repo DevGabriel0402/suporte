@@ -1,42 +1,90 @@
 <!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#132749">
-  <meta name="application-name" content="ConectaTI">
-  <meta name="apple-mobile-web-app-title" content="ConectaTI">
-  <meta name="description" content="Central de suporte de TI escolar para acompanhar chamados, organizar ambientes e emitir relatórios.">
-  <meta property="og:type" content="website">
-  <meta property="og:locale" content="pt_BR">
-  <meta property="og:site_name" content="ConectaTI">
-  <meta property="og:title" content="ConectaTI | Gestão de Suporte Escolar">
-  <meta property="og:description" content="Acompanhe chamados, organize ambientes e emita relatórios de suporte escolar.">
-  <link rel="icon" type="image/svg+xml" href="/icon.svg">
-  <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="manifest" href="/manifest.webmanifest">
-  <title>ConectaTI | Gestão de Suporte Escolar</title>
-  <style>
-    body{margin:0}
-    .boot-screen{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:14px;background:#132749;color:white;font:16px system-ui;text-align:center}
-    .boot-screen img{width:92px;height:92px}
-    .boot-screen strong{font-size:28px}
-    .boot-screen p{margin:0;color:#d7e4ff}
-    .boot-ring,.loading-ring{width:1em;height:1em;display:inline-block;flex:none;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:cti-spin .8s linear infinite}
-    @keyframes cti-spin{to{transform:rotate(360deg)}}
-    @media(prefers-reduced-motion:reduce){.boot-ring,.loading-ring{animation:none}}
-  </style>
-</head>
-<body>
-  <div id="root">
-    <div class="boot-screen" role="status">
-      <img src="/icon.svg" alt="">
-      <strong>ConectaTI</strong>
-      <span class="boot-ring" aria-hidden="true"></span>
-      <p>Iniciando o sistema…</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#132749" />
+    <meta name="application-name" content="ConectaTI" />
+    <meta name="apple-mobile-web-app-title" content="ConectaTI" />
+    <meta
+      name="description"
+      content="Central de suporte de TI escolar para acompanhar chamados, organizar ambientes e emitir relatórios."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:site_name" content="ConectaTI" />
+    <meta property="og:title" content="ConectaTI | Gestão de Suporte Escolar" />
+    <meta
+      property="og:description"
+      content="Acompanhe chamados, organize ambientes e emita relatórios de suporte escolar."
+    />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>ConectaTI | Gestão de Suporte Escolar</title>
+    <style>
+      body {
+        margin: 0;
+      }
+      .boot-screen {
+        min-height: 100dvh;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 14px;
+        background: #132749;
+        color: white;
+        font: 16px system-ui;
+        text-align: center;
+      }
+      .boot-screen img {
+        width: 92px;
+        height: 92px;
+      }
+      .boot-screen strong {
+        font-size: 28px;
+      }
+      .boot-screen p {
+        margin: 0;
+        color: #d7e4ff;
+      }
+      .boot-ring,
+      .loading-ring {
+        width: 1em;
+        height: 1em;
+        display: inline-block;
+        flex: none;
+        border: 2px solid currentColor;
+        border-right-color: transparent;
+        border-radius: 50%;
+        animation: cti-spin 0.8s linear infinite;
+      }
+      @keyframes cti-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-ring,
+        .loading-ring {
+          animation: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-screen" role="status">
+        <img src="/icon.svg" alt="" />
+        <strong>ConectaTI</strong>
+        <span class="boot-ring" aria-hidden="true"></span>
+        <p>Iniciando o sistema…</p>
+      </div>
     </div>
-  </div>
-  <noscript>Ative o JavaScript para acessar o ConectaTI.</noscript>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
+    <noscript>Ative o JavaScript para acessar o ConectaTI.</noscript>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

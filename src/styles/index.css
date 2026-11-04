@@ -2133,12 +2133,15 @@ main {
   display: grid;
   place-items: center;
   position: absolute;
-  inset: 1px 1px 1px auto;
+  top: 22px;
+  right: 2px;
   width: 44px;
   border: 0;
   border-radius: 8px;
-  background: white;
+  background: transparent;
   color: #52627a;
+  padding: 0;
+  margin: 0;
 }
 .access-card :focus-visible {
   outline: 2px solid #3158d8;
@@ -2708,3 +2711,19 @@ button.stat-card:hover {
   opacity: 0.45;
   cursor: default;
 }
+
+/* Room ordering: only the handle captures touch gestures. */
+.room-card { position: relative; }
+.room-drag-handle {
+  position: absolute; top: 15px; left: 15px;
+  display: grid; place-items: center; width: 36px; height: 36px;
+  border: 1px solid #e1e7f2; border-radius: 8px;
+  background: #f3f6fc; color: #65758e; cursor: grab; touch-action: none;
+}
+.room-card-sortable .room-card-top { padding-left: 46px; }
+.room-drag-handle:hover { color: #4063ef; background: #eaf0ff; }
+.room-drag-handle:focus-visible { outline: 2px solid #4063ef; outline-offset: 3px; }
+.room-card-dragging { z-index: 2; box-shadow: 0 12px 30px #101d3326; border-color: #4063ef; }
+.room-card-dragging .room-drag-handle { cursor: grabbing; }
+.room-order-hint { margin-top: 6px; }
+
